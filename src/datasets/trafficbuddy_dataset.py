@@ -427,7 +427,7 @@ if __name__ == "__main__":
     train_json = os.path.join(root_dir, "train", "train.json")
     test_json = os.path.join(root_dir, "public_test", "public_test.json")
 
-    print("Tip: pip install decord transformers sentencepiece")
+    
     train_loader, test_loader, tokenizer = build_loaders(
         root_dir=root_dir,
         train_json=train_json,
