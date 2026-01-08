@@ -1,1 +1,19 @@
 dataset/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
