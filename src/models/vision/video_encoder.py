@@ -76,7 +76,7 @@ class SwinV2FrameTokenizer(nn.Module):
 
         for layer in self.backbone.layers:
             x = layer(x)  # cuối: [N, L, D] e.g. [N, 49, 768]
-
+        
         x = self.backbone.norm(x)  # [N, L, D]
         return x
 

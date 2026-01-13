@@ -231,44 +231,35 @@ class TrafficBuddyDataset(Dataset):
 
     def _sample_clip_indices(self, video_path: str, item: Dict[str, Any]) -> torch.Tensor:
         """
-        Return indices for K clips: shape [K, T]
+        Return indices for ONE clip: shape [T]
         """
         n_total, fps = _get_video_meta(video_path)
 
-        K = self.num_clips
         T = self.num_frames
         S = self.frame_stride
 
-        clip_indices = []
-
+        # -------- choose center --------
         if self.split == "train":
-            # 1) support-centered clip (if exists and passes probability)
-            has_support = "support_frames" in item and isinstance(item["support_frames"], list) and len(item["support_frames"]) > 0
-            use_support = has_support and (self.rng.random() < self.support_prob)
+            has_support = (
+                "support_frames" in item
+                and isinstance(item["support_frames"], list)
+                and len(item["support_frames"]) > 0
+            )
 
-            if use_support:
-                # pick one support time randomly
+            if has_support:
+                # always use support frame
                 t_sec = float(self.rng.choice(item["support_frames"]))
                 center = int(round(t_sec * fps))
-                idxs = _make_clip_indices_centered(center, T, S, n_total)
-                clip_indices.append(idxs)
-
-            # 2) remaining clips random across whole video
-            remain = K - len(clip_indices)
-            for _ in range(remain):
+            else:
                 center = self.rng.randint(0, max(n_total - 1, 0))
-                idxs = _make_clip_indices_centered(center, T, S, n_total)
-                clip_indices.append(idxs)
-
         else:
-            # test: uniform centers
-            centers = _uniform_centers(n_total, K)
-            for c in centers:
-                idxs = _make_clip_indices_centered(c, T, S, n_total)
-                clip_indices.append(idxs)
+            # test: take middle of video
+            center = n_total // 2 if n_total > 0 else 0
 
-        idx = torch.stack(clip_indices, dim=0)  # [K, T]
-        return idx
+        # -------- get ordered frame indices --------
+        idxs = _make_clip_indices_centered(center, T, S, n_total)  # [T]
+        return idxs
+
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         item = self.data[idx]
@@ -300,22 +291,18 @@ class TrafficBuddyDataset(Dataset):
             label = answer_to_index(item["answer"], choices)
 
         # ---- video clips ----
-        clip_idxs = self._sample_clip_indices(video_path, item)  # [K,T]
-        clips = []
-        for k in range(self.num_clips):
-            frames = _read_video_frames(video_path, clip_idxs[k])   # uint8 [T,H,W,C]
-            frames = _preprocess_frames(frames, img_size=self.img_size)  # float [T,C,H,W]
-            clips.append(frames)
-        video = torch.stack(clips, dim=0)  # [K,T,C,H,W]
+        clip_idxs = self._sample_clip_indices(video_path, item)   # [T]
+
+        frames = _read_video_frames(video_path, clip_idxs)        # [T,H,W,C]
+        video = _preprocess_frames(frames, img_size=self.img_size)  # [T,C,H,W]
 
         return {
             "id": qid,
-            "video": video,
-            "enc_list": enc_list,        # list of dict, length=num_choices
+            "video": video,        # [T,C,H,W]
+            "enc_list": enc_list,
             "label": label,
             "video_path": rel_video_path,
         }
-
 
 class TrafficBuddyCollator:
     def __init__(self, tokenizer: AutoTokenizer):
@@ -435,7 +422,7 @@ if __name__ == "__main__":
         batch_size=2,
         num_workers=0,  # Windows: start with 0 for debugging
         num_clips=8,
-        num_frames=8,
+        num_frames=16,
         frame_stride=2,
         img_size=224,
         max_len=128,

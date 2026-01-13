@@ -33,7 +33,7 @@ def main():
     assert video_attn_mask.shape == (B, expected_S), "Shape mask sai"
     assert (video_attn_mask == 1).all(), "Mask phải toàn 1 vì K,T,L cố định"
 
-    print("✅ Unit test OK")
+    print("Unit test OK")
 
 if __name__ == "__main__":
     main()
