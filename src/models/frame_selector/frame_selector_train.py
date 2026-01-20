@@ -86,6 +86,7 @@ def eval_localizer_exact(
     """
     model.eval()
 
+
     # counters
     hit = {(k, t): 0 for k in topk for t in tol_sec}
     total = 0
@@ -103,9 +104,11 @@ def eval_localizer_exact(
 
         # convert top-k indices -> time (seconds)
         # sample_indices: [B,N] (original frame index)
-        top_frames = batch.sample_indices.gather(1, top_idx)   # [B,max_k]
-        fps = batch.fps.to(device).unsqueeze(1).clamp_min(1e-6)  # [B,1]
-        top_times = top_frames.float().to(device) / fps         # [B,max_k]
+
+        sample_indices = batch.sample_indices.to(device)
+        top_frames = sample_indices.gather(1, top_idx)         # [B, max_k]
+        fps = batch.fps.to(device).unsqueeze(1).clamp_min(1e-6)
+        top_times = top_frames.float() / fps
 
         for i in range(B):
             qid = str(batch.ids[i])
